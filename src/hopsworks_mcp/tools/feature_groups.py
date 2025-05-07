@@ -27,6 +27,7 @@ class FeatureGroupTools:
             event_time: Optional[str] = None,
             online_enabled: bool = False,
             time_travel_format: str = "HUDI",
+            statistics_config: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -45,6 +46,12 @@ class FeatureGroupTools:
                 event_time: Name of the feature containing event time 
                 online_enabled: Whether the feature group should be available in online feature store
                 time_travel_format: Format used for time travel (defaults to "HUDI")
+                statistics_config: Configuration for feature statistics computation:
+                    - enabled: Whether to compute statistics (default: True for descriptive statistics)
+                    - correlations: Whether to compute correlations between features (default: False)
+                    - histograms: Whether to compute histograms of feature values (default: False)
+                    - exact_uniqueness: Whether to compute exact uniqueness statistics (default: False)
+                    - columns: List of columns for which to compute statistics (default: all columns)
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -63,16 +70,24 @@ class FeatureGroupTools:
                 if partition_key is not None and len(partition_key) == 0:
                     partition_key = None
                 
-                feature_group = fs.create_feature_group(
-                    name=name,
-                    description=description,
-                    version=version,
-                    primary_key=primary_key,
-                    partition_key=partition_key,
-                    event_time=event_time,
-                    online_enabled=online_enabled,
-                    time_travel_format=time_travel_format
-                )
+                # Build parameters for feature group creation
+                fg_params = {
+                    "name": name,
+                    "description": description,
+                    "version": version,
+                    "primary_key": primary_key,
+                    "partition_key": partition_key,
+                    "event_time": event_time,
+                    "online_enabled": online_enabled,
+                    "time_travel_format": time_travel_format
+                }
+                
+                # Add statistics config if provided
+                if statistics_config is not None:
+                    fg_params["statistics_config"] = statistics_config
+                
+                # Create feature group
+                feature_group = fs.create_feature_group(**fg_params)
                 
                 return {
                     "name": feature_group.name,
@@ -134,6 +149,11 @@ class FeatureGroupTools:
                         "event_time": feature.name == fg.event_time
                     })
                 
+                # Get statistics config if available
+                statistics_config = None
+                if hasattr(fg, 'statistics_config'):
+                    statistics_config = fg.statistics_config
+                
                 return {
                     "name": fg.name,
                     "version": fg.version,
@@ -147,6 +167,7 @@ class FeatureGroupTools:
                     "creator": fg.creator,
                     "id": fg.id,
                     "features": features,
+                    "statistics_config": statistics_config,
                     "status": "success"
                 }
             except Exception as e:
@@ -573,4 +594,156 @@ class FeatureGroupTools:
                 return {
                     "status": "error",
                     "message": f"Failed to compute feature group statistics: {str(e)}"
+                }
+        
+        @self.mcp.tool()
+        async def update_statistics_config(
+            name: str,
+            statistics_config: Dict[str, Any],
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Update the statistics configuration for a feature group.
+            
+            Args:
+                name: Name of the feature group
+                statistics_config: New statistics configuration with the following options:
+                    - enabled: Whether to compute statistics (True/False)
+                    - correlations: Whether to compute correlations between features (True/False)
+                    - histograms: Whether to compute histograms of feature values (True/False)
+                    - exact_uniqueness: Whether to compute exact uniqueness statistics (True/False)
+                    - columns: List of columns for which to compute statistics (empty list for all columns)
+                version: Version of the feature group (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Updated statistics configuration
+            """
+            if ctx:
+                await ctx.info(f"Updating statistics config for feature group: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fg = fs.get_feature_group(name=name, version=version)
+                
+                # Update statistics config
+                fg.statistics_config = statistics_config
+                fg.update_statistics_config()
+                
+                return {
+                    "name": name,
+                    "version": version,
+                    "statistics_config": statistics_config,
+                    "status": "updated"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to update statistics configuration: {str(e)}"
+                }
+        
+        @self.mcp.tool()
+        async def insert(
+            name: str,
+            features_data: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            write_options: Optional[Dict[str, Any]] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Insert feature data into a feature group.
+            
+            This method allows you to insert a dataframe into an existing feature group.
+            The dataframe must contain columns matching the feature group schema,
+            including primary key, partition key, and event time columns.
+            
+            Args:
+                name: Name of the feature group
+                features_data: JSON string representation of the dataframe to insert
+                version: Version of the feature group (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                write_options: Options for feature group insertion (e.g. {"start_offline_materialization": False})
+                
+            Returns:
+                dict: Information about the insertion operation
+            """
+            # Call insert_dataframe for implementation
+            return await self.insert_dataframe(
+                name=name,
+                features_data=features_data,
+                version=version,
+                project_name=project_name,
+                write_options=write_options,
+                ctx=ctx
+            )
+            
+        @self.mcp.tool()
+        async def insert_dataframe(
+            name: str,
+            features_data: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            write_options: Optional[Dict[str, Any]] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Insert feature data into a feature group.
+            
+            This method allows you to insert a dataframe into an existing feature group.
+            The dataframe must contain columns matching the feature group schema,
+            including primary key, partition key, and event time columns.
+            
+            Args:
+                name: Name of the feature group
+                features_data: JSON string representation of the dataframe to insert
+                version: Version of the feature group (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                write_options: Options for feature group insertion (e.g. {"start_offline_materialization": False})
+                
+            Returns:
+                dict: Information about the insertion operation
+            """
+            if ctx:
+                await ctx.info(f"Inserting data into feature group: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fg = fs.get_feature_group(name=name, version=version)
+                
+                # Convert JSON string to pandas DataFrame
+                import pandas as pd
+                import json
+                
+                df = pd.read_json(features_data, orient='records')
+                
+                # Set default write options if not provided
+                if write_options is None:
+                    write_options = {}
+                
+                # Insert data into feature group
+                job, validation_report = fg.insert(df, write_options=write_options)
+                
+                # Determine insertion status
+                status = "success"
+                if job and hasattr(job, 'state'):
+                    job_status = job.state()
+                    status = job_status.upper() if job_status else "SUBMITTED"
+                
+                # Return results
+                return {
+                    "name": name,
+                    "version": version,
+                    "rows_inserted": len(df),
+                    "validation": True if validation_report else False,
+                    "job_id": job.id if job and hasattr(job, 'id') else None,
+                    "job_name": job.name if job and hasattr(job, 'name') else None,
+                    "job_status": status,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to insert data into feature group: {str(e)}"
                 }
