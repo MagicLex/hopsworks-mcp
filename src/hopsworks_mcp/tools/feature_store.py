@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 from typing import List, Dict, Any, Optional
+import hopsworks
 
 
 class FeatureStoreTools:
@@ -31,13 +32,12 @@ class FeatureStoreTools:
         if ctx:
             await ctx.info(f"Getting feature store for project: {project_name or 'default'}")
         
-        # In real implementation:
-        # import hopsworks
-        # project = hopsworks.get_current_project()
-        # fs = project.get_feature_store(name=project_name)
+        # Get feature store from Hopsworks
+        project = hopsworks.get_current_project()
+        fs = project.get_feature_store(name=project_name)
         
         return {
-            "name": project_name or "default",
+            "name": fs.name,
             "connected": True
         }
     
@@ -57,11 +57,22 @@ class FeatureStoreTools:
         if ctx:
             await ctx.info(f"Listing feature groups for project: {project_name or 'default'}")
             
-        # In real implementation:
-        # fs = project.get_feature_store(name=project_name)
-        # feature_groups = fs.get_feature_groups()
+        # Get feature groups from Hopsworks
+        project = hopsworks.get_current_project()
+        fs = project.get_feature_store(name=project_name)
+        feature_groups = fs.get_feature_groups()
         
-        return []
+        # Convert to serializable format
+        result = []
+        for fg in feature_groups:
+            result.append({
+                "name": fg.name,
+                "version": fg.version,
+                "description": fg.description,
+                "created": str(fg.created)
+            })
+        
+        return result
     
     async def get_feature_group(
         self,
@@ -83,13 +94,23 @@ class FeatureStoreTools:
         if ctx:
             await ctx.info(f"Getting feature group {name} (v{version}) from project: {project_name or 'default'}")
             
-        # In real implementation:
-        # fs = project.get_feature_store(name=project_name)
-        # fg = fs.get_feature_group(name=name, version=version)
+        # Get feature group from Hopsworks
+        project = hopsworks.get_current_project()
+        fs = project.get_feature_store(name=project_name)
+        fg = fs.get_feature_group(name=name, version=version)
+        
+        # Get features in a serializable format
+        features = []
+        for feature in fg.features:
+            features.append({
+                "name": feature.name,
+                "type": feature.type,
+                "description": feature.description
+            })
         
         return {
-            "name": name,
-            "version": version,
-            "description": "",
-            "features": []
+            "name": fg.name,
+            "version": fg.version,
+            "description": fg.description,
+            "features": features
         }

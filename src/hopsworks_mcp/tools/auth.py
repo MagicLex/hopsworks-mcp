@@ -1,6 +1,7 @@
 """Authentication tools for Hopsworks."""
 
 from fastmcp import Context
+import hopsworks
 
 
 class AuthTools:
@@ -34,17 +35,18 @@ class AuthTools:
         if ctx:
             await ctx.info(f"Connecting to Hopsworks at {host or 'hopsworks.ai'}...")
         
-        # Store connection details in context for other tools to use
-        connection = {
+        # Perform actual login with the Hopsworks API
+        project_instance = hopsworks.login(
+            host=host, 
+            port=port, 
+            project=project, 
+            api_key_value=api_key_value
+        )
+        
+        return {
+            "project_id": project_instance.id,
+            "project_name": project_instance.name,
             "host": host,
             "port": port,
-            "project": project,
             "connected": True
         }
-        
-        # In a real implementation, we would use the hopsworks library:
-        # import hopsworks
-        # project = hopsworks.login(host=host, port=port, project=project, api_key_value=api_key_value)
-        # return {"project_id": project.id, "project_name": project.name}
-        
-        return connection

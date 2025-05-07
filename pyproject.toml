@@ -10,7 +10,8 @@ requires-python = ">=3.10"
 dependencies = [
     "fastmcp>=2.2.0",
     "httpx",
-    "pydantic>=2.0.0"
+    "pydantic>=2.0.0",
+    "hopsworks"
 ]
 
 [project.optional-dependencies]
