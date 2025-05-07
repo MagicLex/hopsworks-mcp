@@ -15,6 +15,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Queries** - Join, filter, and analyze feature data
 - **Spine Groups** - Create and use spine groups for training data generation
 - **Training Datasets** - Create and manage datasets for model training
+- **Transformation Functions** - Create and manage feature transformation functions
 - **Model Registry** - Manage ML models
 - **Model Serving** - Deploy models to production
 - **Projects** - Create and manage Hopsworks projects

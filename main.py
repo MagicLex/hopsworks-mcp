@@ -24,6 +24,7 @@ from src.hopsworks_mcp.tools.jobs import JobTools
 from src.hopsworks_mcp.tools.kafka import KafkaTools
 from src.hopsworks_mcp.tools.opensearch import OpenSearchTools
 from src.hopsworks_mcp.tools.secrets import SecretsTools
+from src.hopsworks_mcp.tools.transformation_functions import TransformationFunctionsTools
 from src.hopsworks_mcp.resources.projects import ProjectResources
 
 # Initialize tools and resources
@@ -51,6 +52,7 @@ kafka = KafkaTools(mcp)
 opensearch = OpenSearchTools(mcp)
 secrets = SecretsTools(mcp)
 project_resources = ProjectResources(mcp)
+transformation_functions = TransformationFunctionsTools(mcp)
 
 if __name__ == "__main__":
     mcp.run()
