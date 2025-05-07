@@ -27,6 +27,7 @@ class FeatureViewTools:
             transformation_functions: Optional[List[Any]] = None,
             inference_helper_columns: Optional[List[str]] = None,
             training_helper_columns: Optional[List[str]] = None,
+            logging_enabled: bool = False,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -48,6 +49,7 @@ class FeatureViewTools:
                     during inference for computing on-demand features.
                 training_helper_columns: List of feature names that provide additional information during
                     training but are not part of the model features.
+                logging_enabled: Whether to enable feature and prediction logging (default: False)
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -86,6 +88,10 @@ class FeatureViewTools:
                 
                 if training_helper_columns is not None:
                     fv_params["training_helper_columns"] = training_helper_columns
+                
+                # Add logging flag if enabled
+                if logging_enabled:
+                    fv_params["logging_enabled"] = logging_enabled
                 
                 # Create the feature view
                 feature_view = fs.create_feature_view(**fv_params)
@@ -988,6 +994,599 @@ class FeatureViewTools:
                 return {
                     "status": "error",
                     "message": f"Failed to get inference helper columns: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def init_serving(
+            name: str,
+            version: int = 1,
+            training_dataset_version: Optional[int] = None,
+            init_rest_client: bool = False,
+            init_sql_client: bool = True,
+            config_rest_client: Optional[Dict[str, Any]] = None,
+            default_client: str = "sql",
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Initialize serving for a feature view.
+            
+            This initializes the serving client and loads any transformation statistics
+            needed for model-dependent transformations.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                training_dataset_version: Version of the training dataset to use for transformation statistics
+                init_rest_client: Whether to initialize the REST client (default: False)
+                init_sql_client: Whether to initialize the SQL client (default: True)
+                config_rest_client: Configuration options for the REST client
+                default_client: Default client to use ("sql" or "rest")
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the initialized serving
+            """
+            if ctx:
+                await ctx.info(f"Initializing serving for feature view: {name} (v{version})")
+                if training_dataset_version:
+                    await ctx.info(f"Using training dataset version: {training_dataset_version}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Build parameters for init_serving
+                params = {}
+                
+                if training_dataset_version is not None:
+                    params["training_dataset_version"] = training_dataset_version
+                
+                # Setup client initialization parameters
+                if init_rest_client:
+                    params["init_rest_client"] = init_rest_client
+                
+                if init_sql_client:
+                    params["init_sql_client"] = init_sql_client
+                
+                if config_rest_client is not None:
+                    params["config_rest_client"] = config_rest_client
+                
+                if default_client:
+                    params["default_client"] = default_client
+                
+                # Initialize serving
+                fv.init_serving(**params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "default_client": default_client,
+                    "status": "initialized"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to initialize serving: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def init_batch_scoring(
+            name: str,
+            version: int = 1,
+            training_dataset_version: int,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Initialize batch scoring for a feature view.
+            
+            This loads transformation statistics needed for model-dependent transformations
+            during batch inference.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                training_dataset_version: Version of the training dataset to use for transformation statistics
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the initialized batch scoring
+            """
+            if ctx:
+                await ctx.info(f"Initializing batch scoring for feature view: {name} (v{version})")
+                await ctx.info(f"Using training dataset version: {training_dataset_version}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize batch scoring
+                fv.init_batch_scoring(training_dataset_version=training_dataset_version)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "status": "initialized"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to initialize batch scoring: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def enable_logging(
+            name: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Enable feature and prediction logging for a feature view.
+            
+            This creates and configures the required feature groups for storing logs.
+            Logs are written to the offline feature store periodically by scheduled jobs.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the logging configuration
+            """
+            if ctx:
+                await ctx.info(f"Enabling logging for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Enable logging
+                fv.enable_logging()
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "logging_enabled": True,
+                    "status": "enabled"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to enable logging: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def log_features(
+            name: str,
+            version: int = 1,
+            features: Optional[Dict[str, Any]] = None,
+            transformed_features: Optional[Dict[str, Any]] = None,
+            predictions: Optional[Dict[str, Any]] = None,
+            training_dataset_version: Optional[int] = None,
+            model_name: Optional[str] = None,
+            model_version: Optional[int] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Log features and predictions for monitoring and debugging.
+            
+            This logs untransformed features, transformed features, and/or predictions
+            to the feature store for later analysis and monitoring.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                features: Dictionary of untransformed features to log (null if not provided)
+                transformed_features: Dictionary of transformed features to log (null if not provided)
+                predictions: Dictionary of predictions to log (null if not provided)
+                training_dataset_version: Version of the training dataset used with the model
+                model_name: Name of the model used for predictions
+                model_version: Version of the model used for predictions
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the logged data
+            """
+            if ctx:
+                await ctx.info(f"Logging features for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Convert inputs to pandas DataFrames if they're dictionaries
+                import pandas as pd
+                
+                log_params = {}
+                
+                # Add untransformed features if provided
+                if features is not None:
+                    if isinstance(features, dict):
+                        features_df = pd.DataFrame([features])
+                        log_params["features"] = features_df
+                    else:
+                        log_params["features"] = features
+                
+                # Add transformed features if provided
+                if transformed_features is not None:
+                    if isinstance(transformed_features, dict):
+                        transformed_features_df = pd.DataFrame([transformed_features])
+                        log_params["transformed_features"] = transformed_features_df
+                    else:
+                        log_params["transformed_features"] = transformed_features
+                
+                # Add predictions if provided
+                if predictions is not None:
+                    if isinstance(predictions, dict):
+                        predictions_df = pd.DataFrame([predictions])
+                        log_params["predictions"] = predictions_df
+                    else:
+                        log_params["predictions"] = predictions
+                
+                # Add training dataset version if provided
+                if training_dataset_version is not None:
+                    log_params["training_dataset_version"] = training_dataset_version
+                
+                # Add model info if provided
+                if model_name is not None and model_version is not None:
+                    # Create a Model object if model info provided
+                    from hopsworks.model_registry import Model
+                    model = Model(id=None, name=model_name, version=model_version)
+                    log_params["model"] = model
+                
+                # Log the features and predictions
+                fv.log(**log_params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "features_logged": features is not None,
+                    "transformed_features_logged": transformed_features is not None,
+                    "predictions_logged": predictions is not None,
+                    "status": "logged"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to log features: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def materialize_log(
+            name: str,
+            version: int = 1,
+            transformed: bool = None,
+            wait: bool = True,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Materialize feature and prediction logs to the offline feature store.
+            
+            By default, logs are written to the offline store every hour by scheduled jobs.
+            This method triggers an immediate materialization.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                transformed: Whether to materialize transformed (True) or untransformed (False) logs,
+                             or both if not specified (None)
+                wait: Whether to wait for the materialization to complete (default: True)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the materialization process
+            """
+            if ctx:
+                await ctx.info(f"Materializing logs for feature view: {name} (v{version})")
+                if transformed is not None:
+                    await ctx.info(f"Materializing {'transformed' if transformed else 'untransformed'} logs")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Build parameters for materialize_log
+                params = {
+                    "wait": wait
+                }
+                
+                if transformed is not None:
+                    params["transformed"] = transformed
+                
+                # Materialize logs
+                result = fv.materialize_log(**params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "materialization_result": str(result) if result else None,
+                    "transformed": transformed,
+                    "status": "materialized"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to materialize logs: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_log_timeline(
+            name: str,
+            version: int = 1,
+            limit: int = 10,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get the timeline of feature and prediction logs.
+            
+            This retrieves metadata about when logs were written to the feature store.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                limit: Maximum number of timeline entries to return (default: 10)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Log timeline information
+            """
+            if ctx:
+                await ctx.info(f"Getting log timeline for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Get log timeline
+                timeline = fv.get_log_timeline(limit=limit)
+                
+                # Format the timeline data
+                timeline_entries = []
+                for entry in timeline:
+                    if hasattr(entry, 'to_dict'):
+                        timeline_entries.append(entry.to_dict())
+                    else:
+                        timeline_entries.append(str(entry))
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "timeline": timeline_entries,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get log timeline: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def read_log(
+            name: str,
+            version: int = 1,
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None,
+            training_dataset_version: Optional[int] = None,
+            model_name: Optional[str] = None,
+            model_version: Optional[int] = None,
+            filter_expression: Optional[str] = None,
+            transformed: bool = None,
+            limit: int = 100,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Read logged features and predictions from the feature store.
+            
+            This retrieves previously logged data for analysis and monitoring.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                start_time: Start time for filtering logs (format: YYYY-MM-DD HH:MM:SS)
+                end_time: End time for filtering logs (format: YYYY-MM-DD HH:MM:SS)
+                training_dataset_version: Filter by training dataset version
+                model_name: Filter by model name
+                model_version: Filter by model version
+                filter_expression: Custom filter expression
+                transformed: Whether to read transformed (True) or untransformed (False) logs,
+                             or both if not specified (None)
+                limit: Maximum number of log entries to return
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Logged features and predictions
+            """
+            if ctx:
+                await ctx.info(f"Reading logs for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Build parameters for read_log
+                params = {}
+                
+                if start_time:
+                    params["start_time"] = start_time
+                
+                if end_time:
+                    params["end_time"] = end_time
+                
+                if training_dataset_version is not None:
+                    params["training_dataset_version"] = training_dataset_version
+                
+                if model_name is not None and model_version is not None:
+                    from hopsworks.model_registry import Model
+                    model = Model(id=None, name=model_name, version=model_version)
+                    params["model"] = model
+                
+                if filter_expression:
+                    # Note: This is a simplification and may need to be implemented differently
+                    # based on how filter expressions are handled in the actual API
+                    params["filter"] = eval(filter_expression)
+                
+                if transformed is not None:
+                    params["transformed"] = transformed
+                
+                # Read logs
+                log_df = fv.read_log(**params)
+                
+                # Convert to JSON format
+                import json
+                rows = json.loads(log_df.head(limit).to_json(orient="records"))
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "rows": rows,
+                    "count": len(rows),
+                    "truncated": len(rows) >= limit,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to read logs: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def pause_logging(
+            name: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Pause the scheduled materialization of logs to the offline feature store.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Status information
+            """
+            if ctx:
+                await ctx.info(f"Pausing logging for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Pause logging
+                fv.pause_logging()
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "status": "paused"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to pause logging: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def resume_logging(
+            name: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Resume the scheduled materialization of logs to the offline feature store.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Status information
+            """
+            if ctx:
+                await ctx.info(f"Resuming logging for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Resume logging
+                fv.resume_logging()
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "status": "resumed"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to resume logging: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def delete_log(
+            name: str,
+            version: int = 1,
+            transformed: bool = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Delete all logged features and predictions.
+            
+            This deletes both the feature groups and the data stored in them.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                transformed: Whether to delete transformed (True) or untransformed (False) logs,
+                             or both if not specified (None)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Status information
+            """
+            if ctx:
+                await ctx.info(f"Deleting logs for feature view: {name} (v{version})")
+                if transformed is not None:
+                    await ctx.info(f"Deleting {'transformed' if transformed else 'untransformed'} logs")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Build parameters for delete_log
+                params = {}
+                
+                if transformed is not None:
+                    params["transformed"] = transformed
+                
+                # Delete logs
+                fv.delete_log(**params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "transformed": transformed,
+                    "status": "deleted"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to delete logs: {str(e)}"
                 }
                 
         @self.mcp.tool()
