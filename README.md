@@ -10,7 +10,8 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Model Serving** - Deploy models to production
 - **Datasets** - Handle file operations on Hopsworks
 - **Python Environments** - Manage Python environments and dependencies
-- **Executions** - Run and monitor jobs
+- **Jobs** - Create and schedule jobs
+- **Executions** - Run and monitor job executions
 - **Flink Clusters** - Manage Flink clusters and jobs
 - **Git Integration** - Work with Git repositories within Hopsworks
 
