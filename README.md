@@ -14,6 +14,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Executions** - Run and monitor job executions
 - **Flink Clusters** - Manage Flink clusters and jobs
 - **Git Integration** - Work with Git repositories within Hopsworks
+- **Kafka** - Create and manage Kafka topics and schemas
 
 ## Installation
 

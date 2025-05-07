@@ -12,6 +12,7 @@ from src.hopsworks_mcp.tools.executions import ExecutionTools
 from src.hopsworks_mcp.tools.flink import FlinkTools
 from src.hopsworks_mcp.tools.git import GitTools
 from src.hopsworks_mcp.tools.jobs import JobTools
+from src.hopsworks_mcp.tools.kafka import KafkaTools
 from src.hopsworks_mcp.resources.projects import ProjectResources
 
 # Initialize tools and resources
@@ -26,6 +27,7 @@ executions = ExecutionTools(mcp)
 flink = FlinkTools(mcp)
 git = GitTools(mcp)
 jobs = JobTools(mcp)
+kafka = KafkaTools(mcp)
 project_resources = ProjectResources(mcp)
 
 if __name__ == "__main__":
