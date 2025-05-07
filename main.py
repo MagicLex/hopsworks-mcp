@@ -10,6 +10,7 @@ from src.hopsworks_mcp.tools.datasets import DatasetTools
 from src.hopsworks_mcp.tools.environments import EnvironmentTools
 from src.hopsworks_mcp.tools.executions import ExecutionTools
 from src.hopsworks_mcp.tools.flink import FlinkTools
+from src.hopsworks_mcp.tools.git import GitTools
 from src.hopsworks_mcp.resources.projects import ProjectResources
 
 # Initialize tools and resources
@@ -22,6 +23,7 @@ datasets = DatasetTools(mcp)
 environments = EnvironmentTools(mcp)
 executions = ExecutionTools(mcp)
 flink = FlinkTools(mcp)
+git = GitTools(mcp)
 project_resources = ProjectResources(mcp)
 
 if __name__ == "__main__":

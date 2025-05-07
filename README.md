@@ -12,6 +12,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Python Environments** - Manage Python environments and dependencies
 - **Executions** - Run and monitor jobs
 - **Flink Clusters** - Manage Flink clusters and jobs
+- **Git Integration** - Work with Git repositories within Hopsworks
 
 ## Installation
 
