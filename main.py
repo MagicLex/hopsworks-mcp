@@ -9,6 +9,7 @@ from src.hopsworks_mcp.tools.external_feature_groups import ExternalFeatureGroup
 from src.hopsworks_mcp.tools.features import FeatureTools
 from src.hopsworks_mcp.tools.expectations import ExpectationTools
 from src.hopsworks_mcp.tools.embeddings import EmbeddingTools
+from src.hopsworks_mcp.tools.queries import QueryTools
 from src.hopsworks_mcp.tools.model_registry import ModelRegistryTools
 from src.hopsworks_mcp.tools.model_serving import ModelServingTools
 from src.hopsworks_mcp.tools.projects import ProjectTools
@@ -32,6 +33,7 @@ external_feature_groups = ExternalFeatureGroupTools(mcp)
 features = FeatureTools(mcp)
 expectations = ExpectationTools(mcp)
 embeddings = EmbeddingTools(mcp)
+queries = QueryTools(mcp)
 model_registry = ModelRegistryTools(mcp)
 model_serving = ModelServingTools(mcp)
 projects = ProjectTools(mcp)

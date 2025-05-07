@@ -12,6 +12,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Feature Views** - Create and use feature views for model training and serving
 - **Expectations** - Create and manage data validation rules
 - **Embeddings** - Manage vector embeddings and similarity search
+- **Queries** - Join, filter, and analyze feature data
 - **Model Registry** - Manage ML models
 - **Model Serving** - Deploy models to production
 - **Projects** - Create and manage Hopsworks projects
