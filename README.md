@@ -5,7 +5,8 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 ## Capabilities
 
 - **Authentication** - Connect to Hopsworks instances
-- **Feature Store** - Interact with feature groups and feature views
+- **Feature Store** - Interact with feature stores and run SQL queries
+- **Feature Groups** - Manage feature groups and their data
 - **Model Registry** - Manage ML models
 - **Model Serving** - Deploy models to production
 - **Projects** - Create and manage Hopsworks projects
