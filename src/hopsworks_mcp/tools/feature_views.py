@@ -24,6 +24,7 @@ class FeatureViewTools:
             version: Optional[int] = None,
             description: str = "",
             labels: Optional[List[str]] = None,
+            transformation_functions: Optional[List[Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -38,6 +39,9 @@ class FeatureViewTools:
                 version: Version of the feature view (defaults to incremented from last version)
                 description: Description of the feature view
                 labels: List of feature names that are prediction targets/labels
+                transformation_functions: List of transformation functions to attach to the feature view
+                    These model-dependent transformation functions are applied when using the feature view
+                    for training and inference.
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -53,18 +57,25 @@ class FeatureViewTools:
                 # Convert empty lists to None to avoid API issues
                 if labels is not None and len(labels) == 0:
                     labels = None
+                    
+                if transformation_functions is not None and len(transformation_functions) == 0:
+                    transformation_functions = None
                 
-                # The query parameter is a string representation of a query object
-                # We need to convert it to an actual Query object from Hopsworks
-                # This is a simplified approach - in a real implementation, 
-                # we would need a more robust way to handle query objects
-                feature_view = fs.create_feature_view(
-                    name=name,
-                    version=version,
-                    description=description,
-                    labels=labels,
-                    query=eval(query)  # Dangerous in production, would need proper deserialization
-                )
+                # Build parameters for feature view creation
+                fv_params = {
+                    "name": name,
+                    "version": version,
+                    "description": description,
+                    "labels": labels,
+                    "query": eval(query)  # Dangerous in production, would need proper deserialization
+                }
+                
+                # Add transformation functions if provided
+                if transformation_functions is not None:
+                    fv_params["transformation_functions"] = transformation_functions
+                
+                # Create the feature view
+                feature_view = fs.create_feature_view(**fv_params)
                 
                 return {
                     "name": feature_view.name,
@@ -418,17 +429,26 @@ class FeatureViewTools:
             name: str,
             version: int = 1,
             entry: Dict[str, Any] = None,
+            transform: bool = True,
+            on_demand_features: bool = True,
+            request_parameter: Optional[Dict[str, Any]] = None,
+            return_type: str = "dict",
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Get a feature vector from the online feature store.
             
-            This retrieves a feature vector for online serving from the feature view.
+            This retrieves a feature vector for online serving from the feature view,
+            with options to compute on-demand features and apply transformations.
             
             Args:
                 name: Name of the feature view
                 version: Version of the feature view (defaults to 1)
                 entry: Dictionary of primary key values to retrieve the feature vector for
+                transform: Whether to apply model-dependent transformations (default: True)
+                on_demand_features: Whether to compute on-demand features (default: True)
+                request_parameter: Parameters for on-demand feature computation (e.g., current dates/times)
+                return_type: Return type format - "dict" or "pandas" (default: "dict")
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -436,6 +456,8 @@ class FeatureViewTools:
             """
             if ctx:
                 await ctx.info(f"Getting feature vector from feature view: {name} (v{version})")
+                if request_parameter:
+                    await ctx.info(f"With on-demand parameters: {request_parameter}")
             
             try:
                 project = hopsworks.get_current_project()
@@ -445,19 +467,348 @@ class FeatureViewTools:
                 # Initialize serving
                 fv.init_serving()
                 
+                # Build parameters for get_feature_vector
+                params = {
+                    "entry": entry,
+                    "transform": transform,
+                    "on_demand_features": on_demand_features,
+                    "return_type": return_type
+                }
+                
+                # Add request_parameter if provided
+                if request_parameter is not None:
+                    params["request_parameter"] = request_parameter
+                
                 # Get feature vector
-                vector = fv.get_feature_vector(entry=entry)
+                vector = fv.get_feature_vector(**params)
+                
+                # Convert pandas to dict if needed
+                if return_type == "pandas" and hasattr(vector, 'to_dict'):
+                    vector_data = vector.to_dict('records')[0] if len(vector) > 0 else {}
+                else:
+                    vector_data = vector
                 
                 return {
                     "feature_view_name": name,
                     "feature_view_version": version,
-                    "vector": vector,
+                    "vector": vector_data,
+                    "on_demand_features_computed": on_demand_features,
+                    "transformations_applied": transform,
                     "status": "success"
                 }
             except Exception as e:
                 return {
                     "status": "error",
                     "message": f"Failed to get feature vector: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_feature_vectors(
+            name: str,
+            version: int = 1,
+            entries: List[Dict[str, Any]] = None,
+            transform: bool = True,
+            on_demand_features: bool = True,
+            request_parameter: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+            return_type: str = "dict",
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get multiple feature vectors from the online feature store.
+            
+            This retrieves multiple feature vectors for online serving from the feature view,
+            with options to compute on-demand features and apply transformations.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                entries: List of dictionaries containing primary key values to retrieve feature vectors for
+                transform: Whether to apply model-dependent transformations (default: True)
+                on_demand_features: Whether to compute on-demand features (default: True)
+                request_parameter: Parameters for on-demand feature computation, either:
+                    - A single dictionary (applied to all entries)
+                    - A list of dictionaries (one per entry)
+                return_type: Return type format - "dict" or "pandas" (default: "dict")
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature vectors information
+            """
+            if ctx:
+                await ctx.info(f"Getting feature vectors from feature view: {name} (v{version})")
+                if request_parameter:
+                    if isinstance(request_parameter, list):
+                        await ctx.info(f"With {len(request_parameter)} sets of on-demand parameters")
+                    else:
+                        await ctx.info(f"With common on-demand parameters")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Build parameters for get_feature_vectors
+                params = {
+                    "entries": entries,
+                    "transform": transform,
+                    "on_demand_features": on_demand_features,
+                    "return_type": return_type
+                }
+                
+                # Add request_parameter if provided
+                if request_parameter is not None:
+                    params["request_parameter"] = request_parameter
+                
+                # Get feature vectors
+                vectors = fv.get_feature_vectors(**params)
+                
+                # Convert pandas to dict if needed
+                if return_type == "pandas" and hasattr(vectors, 'to_dict'):
+                    vectors_data = vectors.to_dict('records') if len(vectors) > 0 else []
+                else:
+                    vectors_data = vectors
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "vectors": vectors_data,
+                    "count": len(vectors_data) if isinstance(vectors_data, list) else 0,
+                    "on_demand_features_computed": on_demand_features,
+                    "transformations_applied": transform,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get feature vectors: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def compute_on_demand_features(
+            name: str,
+            version: int = 1,
+            feature_vector: Dict[str, Any] = None,
+            request_parameter: Optional[Dict[str, Any]] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Compute on-demand features for a single feature vector.
+            
+            This computes on-demand features for an existing feature vector without
+            applying model-dependent transformations.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                feature_vector: Feature vector to compute on-demand features for
+                request_parameter: Parameters for on-demand feature computation
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature vector with on-demand features
+            """
+            if ctx:
+                await ctx.info(f"Computing on-demand features for feature view: {name} (v{version})")
+                if request_parameter:
+                    await ctx.info(f"With on-demand parameters: {request_parameter}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Build parameters for compute_on_demand_features
+                params = {
+                    "feature_vector": feature_vector
+                }
+                
+                # Add request_parameter if provided
+                if request_parameter is not None:
+                    params["request_parameter"] = request_parameter
+                
+                # Compute on-demand features
+                result = fv.compute_on_demand_features(**params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "feature_vector": result,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to compute on-demand features: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def compute_on_demand_features_batch(
+            name: str,
+            version: int = 1,
+            feature_vectors: List[Dict[str, Any]] = None,
+            request_parameter: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Compute on-demand features for multiple feature vectors.
+            
+            This computes on-demand features for existing feature vectors without
+            applying model-dependent transformations.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                feature_vectors: List of feature vectors to compute on-demand features for
+                request_parameter: Parameters for on-demand feature computation, either:
+                    - A single dictionary (applied to all feature vectors)
+                    - A list of dictionaries (one per feature vector)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature vectors with on-demand features
+            """
+            if ctx:
+                await ctx.info(f"Computing on-demand features for feature view: {name} (v{version})")
+                if request_parameter:
+                    if isinstance(request_parameter, list):
+                        await ctx.info(f"With {len(request_parameter)} sets of on-demand parameters")
+                    else:
+                        await ctx.info(f"With common on-demand parameters")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Build parameters for compute_on_demand_features
+                params = {
+                    "feature_vectors": feature_vectors
+                }
+                
+                # Add request_parameter if provided
+                if request_parameter is not None:
+                    params["request_parameter"] = request_parameter
+                
+                # Compute on-demand features
+                results = fv.compute_on_demand_features(**params)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "feature_vectors": results,
+                    "count": len(results) if isinstance(results, list) else 0,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to compute on-demand features in batch: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def transform(
+            name: str,
+            version: int = 1,
+            feature_vector: Dict[str, Any] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Apply model-dependent transformations to a feature vector.
+            
+            This applies model-dependent transformations to a feature vector
+            that may already have on-demand features computed.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                feature_vector: Feature vector to transform
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Transformed feature vector
+            """
+            if ctx:
+                await ctx.info(f"Applying transformations for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Apply transformations
+                result = fv.transform(feature_vector)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "feature_vector": result,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to transform feature vector: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def transform_batch(
+            name: str,
+            version: int = 1,
+            feature_vectors: List[Dict[str, Any]] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Apply model-dependent transformations to multiple feature vectors.
+            
+            This applies model-dependent transformations to feature vectors
+            that may already have on-demand features computed.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                feature_vectors: List of feature vectors to transform
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Transformed feature vectors
+            """
+            if ctx:
+                await ctx.info(f"Applying transformations for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Apply transformations
+                results = fv.transform(feature_vectors)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "feature_vectors": results,
+                    "count": len(results) if isinstance(results, list) else 0,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to transform feature vectors in batch: {str(e)}"
                 }
                 
         @self.mcp.tool()

@@ -28,6 +28,7 @@ class FeatureGroupTools:
             online_enabled: bool = False,
             time_travel_format: str = "HUDI",
             statistics_config: Optional[Dict[str, Any]] = None,
+            transformation_functions: Optional[List[Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -52,6 +53,10 @@ class FeatureGroupTools:
                     - histograms: Whether to compute histograms of feature values (default: False)
                     - exact_uniqueness: Whether to compute exact uniqueness statistics (default: False)
                     - columns: List of columns for which to compute statistics (default: all columns)
+                transformation_functions: List of transformation functions to attach to the feature group
+                    These functions will be used as on-demand transformations that can be dynamically
+                    computed during online inference. Functions can be provided directly or with specified
+                    input feature mappings.
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -85,6 +90,10 @@ class FeatureGroupTools:
                 # Add statistics config if provided
                 if statistics_config is not None:
                     fg_params["statistics_config"] = statistics_config
+                
+                # Add transformation functions if provided
+                if transformation_functions is not None:
+                    fg_params["transformation_functions"] = transformation_functions
                 
                 # Create feature group
                 feature_group = fs.create_feature_group(**fg_params)
