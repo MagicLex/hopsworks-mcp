@@ -22,7 +22,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Queries** - Join, filter, and analyze feature data
 - **Spine Groups** - Create and use spine groups for training data generation
 - **Training Datasets** - Create and manage datasets for model training
-- **Transformation Functions** - Create and manage feature transformation functions
+- **Transformation Functions** - Create and manage feature transformation functions (one-to-one, one-to-many, many-to-one, many-to-many) with support for statistics-based transformations
 
 ### Model Lifecycle
 - **Model Registry** - Create, save, retrieve and manage ML models (TensorFlow, PyTorch, scikit-learn, Python, LLM)
@@ -90,3 +90,19 @@ fastmcp install main.py --name "Hopsworks Tools"
 ### Version Compatibility
 - The major and minor version of the Hopsworks Python library should match those of your Hopsworks deployment.
 - Check your Hopsworks version in the Project's settings tab.
+
+### Transformation Functions
+- Creating transformation functions:
+  - One-to-one: Transform a single feature into a single output feature
+  - One-to-many: Transform a single feature into multiple output features
+  - Many-to-one: Combine multiple features into a single output feature
+  - Many-to-many: Transform multiple input features into multiple output features
+
+- Execution modes:
+  - `default`: Uses Pandas UDF for batch operations, Python UDF for online inference
+  - `python`: Always uses Python UDF regardless of operation type
+  - `pandas`: Always uses Pandas UDF regardless of operation type
+
+- Use statistics-based transformations for feature normalization and scaling
+- Use context variables to share common parameters across multiple transformations
+- Use the `drop_features` parameter to exclude input features from the output
