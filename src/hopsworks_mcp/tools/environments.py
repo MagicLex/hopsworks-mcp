@@ -38,6 +38,7 @@ class EnvironmentTools:
         name: str,
         description: Optional[str] = None,
         base_environment_name: str = "python-feature-pipeline",
+        python_version: Optional[str] = None,
         await_creation: bool = True,
         ctx: Context = None
     ) -> Dict[str, Any]:
@@ -46,23 +47,35 @@ class EnvironmentTools:
         Args:
             name: Name of the environment
             description: Description of the environment
-            base_environment_name: The name of the environment to clone from
+            base_environment_name: The name of the environment to clone from (e.g., python-feature-pipeline, python-model-serving)
+            python_version: Specific Python version to use (e.g., "3.10", "3.11")
             await_creation: If True, wait until creation is finished
             
         Returns:
             Environment information
         """
         if ctx:
-            await ctx.info(f"Creating Python environment: {name}")
+            await ctx.info(f"Creating Python environment: {name} (base: {base_environment_name})")
+            if python_version:
+                await ctx.info(f"Using Python version: {python_version}")
         
         project = hopsworks.get_current_project()
         env_api = project.get_environment_api()
-        env = env_api.create_environment(
-            name=name,
-            description=description,
-            base_environment_name=base_environment_name,
-            await_creation=await_creation
-        )
+        
+        # Prepare environment creation options
+        creation_options = {
+            "name": name,
+            "description": description,
+            "base_environment_name": base_environment_name,
+            "await_creation": await_creation
+        }
+        
+        # Add Python version if specified
+        if python_version:
+            creation_options["python_version"] = python_version
+        
+        # Create the environment
+        env = env_api.create_environment(**creation_options)
         
         return {
             "name": env.name,
@@ -141,6 +154,7 @@ class EnvironmentTools:
         environment_name: str,
         path: str,
         await_installation: bool = True,
+        add_python_profile: bool = True,
         ctx: Context = None
     ) -> Dict[str, Any]:
         """Install libraries specified in a requirements.txt file.
@@ -149,6 +163,7 @@ class EnvironmentTools:
             environment_name: Name of the environment
             path: The path on Hopsworks where the requirements.txt file is located
             await_installation: If True, wait until installation is finished
+            add_python_profile: If True, will automatically use the [python] profile for compatible packages
             
         Returns:
             Installation status

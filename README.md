@@ -69,4 +69,24 @@ fastmcp install main.py --name "Hopsworks Tools"
 ## Requirements
 
 - Python 3.10+
-- Hopsworks API access (API key)
+- Hopsworks API access (API key with recommended scopes: featurestore, project, job, kafka)
+
+## Best Practices
+
+### Installation
+- The Hopsworks Python client is installed with the Python profile (`hopsworks[python]`) to ensure all necessary dependencies are available for pure Python environments.
+- For Spark environments, refer to the [Spark integration guide](https://docs.hopsworks.ai/latest/integrations/spark/) for proper configuration.
+
+### API Key
+- When generating an API key, include the following scopes: `featurestore`, `project`, `job`, and `kafka` for full functionality.
+- Store API keys securely and never commit them to version control.
+
+### Engine Selection
+- Use the appropriate engine based on your environment:
+  - `python`: For pure Python environments (default)
+  - `spark`: For Apache Spark environments
+  - `hive`: For Hive query execution
+
+### Version Compatibility
+- The major and minor version of the Hopsworks Python library should match those of your Hopsworks deployment.
+- Check your Hopsworks version in the Project's settings tab.

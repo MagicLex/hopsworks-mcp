@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 import hopsworks
+from typing import Optional, Literal
 
 
 class AuthTools:
@@ -19,6 +20,7 @@ class AuthTools:
         port: int = 443, 
         project: str = None,
         api_key_value: str = None,
+        engine: Literal["python", "spark", "hive"] = "python",
         ctx: Context = None
     ) -> dict:
         """Connect to a Hopsworks instance.
@@ -27,20 +29,22 @@ class AuthTools:
             host: The hostname of the Hopsworks instance
             port: The port on which the Hopsworks instance can be reached
             project: Name of the project to access
-            api_key_value: Value of the API Key
+            api_key_value: Value of the API Key (should have scopes: featurestore, project, job, kafka)
+            engine: The engine to use for data processing (python, spark, or hive)
             
         Returns:
             Connection information
         """
         if ctx:
-            await ctx.info(f"Connecting to Hopsworks at {host or 'hopsworks.ai'}...")
+            await ctx.info(f"Connecting to Hopsworks at {host or 'hopsworks.ai'} using {engine} engine...")
         
         # Perform actual login with the Hopsworks API
         project_instance = hopsworks.login(
             host=host, 
             port=port, 
             project=project, 
-            api_key_value=api_key_value
+            api_key_value=api_key_value,
+            engine=engine
         )
         
         return {
@@ -48,5 +52,6 @@ class AuthTools:
             "project_name": project_instance.name,
             "host": host,
             "port": port,
+            "engine": engine,
             "connected": True
         }
