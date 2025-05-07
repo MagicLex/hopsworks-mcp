@@ -7,6 +7,7 @@ from src.hopsworks_mcp.tools.model_registry import ModelRegistryTools
 from src.hopsworks_mcp.tools.model_serving import ModelServingTools
 from src.hopsworks_mcp.tools.projects import ProjectTools
 from src.hopsworks_mcp.tools.datasets import DatasetTools
+from src.hopsworks_mcp.tools.environments import EnvironmentTools
 from src.hopsworks_mcp.resources.projects import ProjectResources
 
 # Initialize tools and resources
@@ -16,6 +17,7 @@ model_registry = ModelRegistryTools(mcp)
 model_serving = ModelServingTools(mcp)
 projects = ProjectTools(mcp)
 datasets = DatasetTools(mcp)
+environments = EnvironmentTools(mcp)
 project_resources = ProjectResources(mcp)
 
 if __name__ == "__main__":
