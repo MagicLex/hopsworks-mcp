@@ -2,12 +2,13 @@
 
 MCP server for Hopsworks integration, providing a straightforward interface for LLMs to interact with Hopsworks features.
 
-## Features
+## Capabilities
 
 - **Authentication** - Connect to Hopsworks instances
 - **Feature Store** - Interact with feature groups and feature views
 - **Model Registry** - Manage ML models
 - **Model Serving** - Deploy models to production
+- **Projects** - Create and manage Hopsworks projects
 - **Datasets** - Handle file operations on Hopsworks
 - **Python Environments** - Manage Python environments and dependencies
 - **Jobs** - Create and schedule jobs
@@ -15,6 +16,8 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Flink Clusters** - Manage Flink clusters and jobs
 - **Git Integration** - Work with Git repositories within Hopsworks
 - **Kafka** - Create and manage Kafka topics and schemas
+- **OpenSearch** - Work with OpenSearch indexes
+- **Secrets** - Securely store and retrieve sensitive information
 
 ## Installation
 
