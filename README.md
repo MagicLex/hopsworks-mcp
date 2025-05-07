@@ -17,7 +17,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Training Datasets** - Create and manage datasets for model training
 - **Transformation Functions** - Create and manage feature transformation functions
 - **Model Registry** - Create, save, retrieve and manage ML models (TensorFlow, PyTorch, scikit-learn, Python, LLM)
-- **Model Serving** - Deploy models to production
+- **Model Serving** - Deploy, manage and monitor ML models in production with advanced features like transformers, inference logging and batching
 - **Projects** - Create and manage Hopsworks projects
 - **Datasets** - Handle file operations on Hopsworks
 - **Python Environments** - Manage Python environments and dependencies
