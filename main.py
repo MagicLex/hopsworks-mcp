@@ -11,6 +11,7 @@ from src.hopsworks_mcp.tools.expectations import ExpectationTools
 from src.hopsworks_mcp.tools.embeddings import EmbeddingTools
 from src.hopsworks_mcp.tools.queries import QueryTools
 from src.hopsworks_mcp.tools.spine_groups import SpineGroupTools
+from src.hopsworks_mcp.tools.training_datasets import TrainingDatasetTools
 from src.hopsworks_mcp.tools.model_registry import ModelRegistryTools
 from src.hopsworks_mcp.tools.model_serving import ModelServingTools
 from src.hopsworks_mcp.tools.projects import ProjectTools
@@ -36,6 +37,7 @@ expectations = ExpectationTools(mcp)
 embeddings = EmbeddingTools(mcp)
 queries = QueryTools(mcp)
 spine_groups = SpineGroupTools(mcp)
+training_datasets = TrainingDatasetTools(mcp)
 model_registry = ModelRegistryTools(mcp)
 model_serving = ModelServingTools(mcp)
 projects = ProjectTools(mcp)
