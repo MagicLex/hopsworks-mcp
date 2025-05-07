@@ -13,6 +13,7 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 - **Expectations** - Create and manage data validation rules
 - **Embeddings** - Manage vector embeddings and similarity search
 - **Queries** - Join, filter, and analyze feature data
+- **Spine Groups** - Create and use spine groups for training data generation
 - **Model Registry** - Manage ML models
 - **Model Serving** - Deploy models to production
 - **Projects** - Create and manage Hopsworks projects
