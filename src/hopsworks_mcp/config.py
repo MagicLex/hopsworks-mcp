@@ -9,7 +9,12 @@ class Settings(BaseSettings):
     Configure with environment variables prefixed with HOPSWORKS_MCP_.
     """
     
-    api_url: str = "https://hopsworks.ai"
+    # Hopsworks connection settings
+    hopsworks_host: str = ""
+    hopsworks_port: int = 443
+    hopsworks_project: str = ""
+    hopsworks_api_key: str = ""
+    hopsworks_hostname_verification: bool = False
     
     class Config:
         env_prefix = "HOPSWORKS_MCP_"
