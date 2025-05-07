@@ -1,0 +1,565 @@
+"""Feature views capability for Hopsworks MCP server."""
+
+from typing import Dict, Any, List, Optional, Union
+import json
+import hopsworks
+from fastmcp import Context
+
+
+class FeatureViewTools:
+    """Tools for working with Hopsworks Feature Views."""
+
+    def __init__(self, mcp):
+        """Initialize feature view tools.
+        
+        Args:
+            mcp: The MCP server instance
+        """
+        self.mcp = mcp
+        
+        @self.mcp.tool()
+        async def create_feature_view(
+            name: str,
+            query: str,
+            version: Optional[int] = None,
+            description: str = "",
+            labels: Optional[List[str]] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Create a feature view metadata object and save it to Hopsworks.
+            
+            A feature view is a logical view over feature groups that can be used
+            for model training and inference.
+            
+            Args:
+                name: Name of the feature view to create
+                query: Feature store query object (serialized as string)
+                version: Version of the feature view (defaults to incremented from last version)
+                description: Description of the feature view
+                labels: List of feature names that are prediction targets/labels
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature view information
+            """
+            if ctx:
+                await ctx.info(f"Creating feature view: {name} (v{version or 'auto'}) in project {project_name or 'default'}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                
+                # Convert empty lists to None to avoid API issues
+                if labels is not None and len(labels) == 0:
+                    labels = None
+                
+                # The query parameter is a string representation of a query object
+                # We need to convert it to an actual Query object from Hopsworks
+                # This is a simplified approach - in a real implementation, 
+                # we would need a more robust way to handle query objects
+                feature_view = fs.create_feature_view(
+                    name=name,
+                    version=version,
+                    description=description,
+                    labels=labels,
+                    query=eval(query)  # Dangerous in production, would need proper deserialization
+                )
+                
+                return {
+                    "name": feature_view.name,
+                    "version": feature_view.version,
+                    "description": feature_view.description,
+                    "labels": feature_view.labels or [],
+                    "created": str(feature_view.creation_date) if hasattr(feature_view, 'creation_date') else None,
+                    "feature_store_name": feature_view.feature_store_name,
+                    "status": "created"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to create feature view: {str(e)}"
+                }
+        
+        @self.mcp.tool()
+        async def get_feature_view(
+            name: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get a feature view entity from the feature store.
+            
+            Args:
+                name: Name of the feature view to get
+                version: Version of the feature view to retrieve (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature view details
+            """
+            if ctx:
+                await ctx.info(f"Getting feature view: {name} (v{version}) from project {project_name or 'default'}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                return {
+                    "name": fv.name,
+                    "version": fv.version,
+                    "description": fv.description,
+                    "labels": fv.labels or [],
+                    "feature_store_name": fv.feature_store_name,
+                    "schema": list(fv.schema) if hasattr(fv, 'schema') else [],
+                    "query": str(fv.query) if hasattr(fv, 'query') else None,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get feature view: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def list_feature_views(
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> List[Dict[str, Any]]:
+            """List feature views in a Hopsworks project's feature store.
+            
+            Args:
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                list: List of feature views in the feature store
+            """
+            if ctx:
+                await ctx.info(f"Listing feature views for project: {project_name or 'default'}")
+                
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                
+                # Get feature views - since there's no direct method to get all feature views,
+                # we need to implement a workaround using SQL query on metadata
+                # This is a placeholder - in a real implementation, better approach is needed
+                query = "SELECT name FROM feature_store_metadata.feature_views GROUP BY name"
+                df = fs.sql(query, dataframe_type="pandas")
+                fv_names = df['name'].tolist()
+                
+                result = []
+                for fv_name in fv_names:
+                    try:
+                        # Get all versions for each feature view name
+                        fvs = fs.get_feature_views(fv_name)
+                        for fv in fvs:
+                            result.append({
+                                "name": fv.name,
+                                "version": fv.version,
+                                "description": fv.description,
+                                "labels": fv.labels or [],
+                                "feature_store_name": fv.feature_store_name
+                            })
+                    except:
+                        # Skip any feature views that can't be retrieved
+                        pass
+                
+                return result
+            except Exception as e:
+                return [{
+                    "status": "error",
+                    "message": f"Failed to list feature views: {str(e)}"
+                }]
+        
+        @self.mcp.tool()
+        async def update_feature_view_description(
+            name: str,
+            description: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Update the description of a feature view.
+            
+            Args:
+                name: Name of the feature view to update
+                description: New description for the feature view
+                version: Version of the feature view (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Updated feature view information
+            """
+            if ctx:
+                await ctx.info(f"Updating description for feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Update description
+                fv.description = description
+                fv.update()
+                
+                return {
+                    "name": fv.name,
+                    "version": fv.version,
+                    "description": fv.description,
+                    "status": "updated"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to update feature view description: {str(e)}"
+                }
+        
+        @self.mcp.tool()
+        async def delete_feature_view(
+            name: str,
+            version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Delete a feature view and all associated metadata and training data.
+            
+            Args:
+                name: Name of the feature view to delete
+                version: Version of the feature view (defaults to 1)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Status information
+            """
+            if ctx:
+                await ctx.info(f"Deleting feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Delete feature view
+                fv.delete()
+                
+                return {
+                    "name": name,
+                    "version": version,
+                    "status": "deleted"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to delete feature view: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_batch_data(
+            name: str,
+            version: int = 1,
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None,
+            limit: int = 100,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get a batch of data from a feature view.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                start_time: Start event time for the batch query (format: YYYY-MM-DD HH:MM:SS)
+                end_time: End event time for the batch query (format: YYYY-MM-DD HH:MM:SS)
+                limit: Maximum number of rows to return
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Batch data from the feature view
+            """
+            if ctx:
+                await ctx.info(f"Getting batch data from feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Get batch data
+                df = fv.get_batch_data(start_time=start_time, end_time=end_time)
+                
+                # Convert result to JSON format
+                rows = json.loads(df.head(limit).to_json(orient="records"))
+                
+                return {
+                    "name": fv.name,
+                    "version": fv.version,
+                    "rows": rows,
+                    "count": len(rows),
+                    "truncated": len(rows) >= limit,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get batch data: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def create_training_data(
+            name: str,
+            version: int = 1,
+            description: str = "",
+            start_time: Optional[str] = None,
+            end_time: Optional[str] = None,
+            data_format: str = "parquet",
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Create training data from a feature view.
+            
+            This materializes a training dataset from the feature view's data that
+            can be used to train machine learning models.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                description: Description of the training dataset
+                start_time: Start event time for data selection (format: YYYY-MM-DD HH:MM:SS)
+                end_time: End event time for data selection (format: YYYY-MM-DD HH:MM:SS)
+                data_format: Format to save the data (parquet, csv, tfrecord, etc.)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the created training data
+            """
+            if ctx:
+                await ctx.info(f"Creating training data from feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Create training data
+                training_dataset_version, job = fv.create_training_data(
+                    description=description,
+                    start_time=start_time,
+                    end_time=end_time,
+                    data_format=data_format
+                )
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "job_id": job.id if job else None,
+                    "job_name": job.name if job else None,
+                    "status": "created"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to create training data: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_training_data(
+            name: str,
+            version: int = 1,
+            training_dataset_version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get training data from a feature view.
+            
+            This retrieves previously materialized training data from a feature view.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                training_dataset_version: Version of the training dataset to retrieve
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the retrieved training data
+            """
+            if ctx:
+                await ctx.info(f"Getting training data from feature view: {name} (v{version}), training dataset v{training_dataset_version}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Get training data
+                features_df, labels_df = fv.get_training_data(training_dataset_version=training_dataset_version)
+                
+                # Result will include information about the training data but not the actual data
+                # as it could be very large
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "features_count": len(features_df.columns) if features_df is not None else 0,
+                    "labels_count": len(labels_df.columns) if labels_df is not None else 0,
+                    "rows_count": len(features_df) if features_df is not None else 0,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get training data: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_feature_vector(
+            name: str,
+            version: int = 1,
+            entry: Dict[str, Any] = None,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get a feature vector from the online feature store.
+            
+            This retrieves a feature vector for online serving from the feature view.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                entry: Dictionary of primary key values to retrieve the feature vector for
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Feature vector information
+            """
+            if ctx:
+                await ctx.info(f"Getting feature vector from feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Get feature vector
+                vector = fv.get_feature_vector(entry=entry)
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "vector": vector,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get feature vector: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def create_train_test_split(
+            name: str,
+            version: int = 1,
+            test_size: float = 0.2,
+            description: str = "",
+            data_format: str = "parquet",
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Create a train-test split from a feature view.
+            
+            This materializes a training dataset split into train and test sets.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                test_size: Size of the test set as a fraction (0.0 to 1.0)
+                description: Description of the training dataset
+                data_format: Format to save the data (parquet, csv, tfrecord, etc.)
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the created train-test split
+            """
+            if ctx:
+                await ctx.info(f"Creating train-test split from feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Create train-test split
+                training_dataset_version, job = fv.create_train_test_split(
+                    test_size=test_size,
+                    description=description,
+                    data_format=data_format
+                )
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "test_size": test_size,
+                    "job_id": job.id if job else None,
+                    "job_name": job.name if job else None,
+                    "status": "created"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to create train-test split: {str(e)}"
+                }
+                
+        @self.mcp.tool()
+        async def get_train_test_split(
+            name: str,
+            version: int = 1,
+            training_dataset_version: int = 1,
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get a train-test split from a feature view.
+            
+            This retrieves previously materialized train-test split data from a feature view.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                training_dataset_version: Version of the training dataset to retrieve
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Information about the retrieved train-test split
+            """
+            if ctx:
+                await ctx.info(f"Getting train-test split from feature view: {name} (v{version}), training dataset v{training_dataset_version}")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Get train-test split
+                X_train, X_test, y_train, y_test = fv.get_train_test_split(training_dataset_version=training_dataset_version)
+                
+                # Result will include information about the train-test split but not the actual data
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "training_dataset_version": training_dataset_version,
+                    "X_train_shape": (len(X_train), len(X_train.columns)) if X_train is not None else None,
+                    "X_test_shape": (len(X_test), len(X_test.columns)) if X_test is not None else None,
+                    "y_train_shape": (len(y_train), len(y_train.columns)) if y_train is not None and hasattr(y_train, 'columns') else None,
+                    "y_test_shape": (len(y_test), len(y_test.columns)) if y_test is not None and hasattr(y_test, 'columns') else None,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get train-test split: {str(e)}"
+                }

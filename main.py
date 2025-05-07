@@ -4,6 +4,7 @@ from src.hopsworks_mcp.server import mcp
 from src.hopsworks_mcp.tools.auth import AuthTools
 from src.hopsworks_mcp.tools.feature_store import FeatureStoreTools
 from src.hopsworks_mcp.tools.feature_groups import FeatureGroupTools
+from src.hopsworks_mcp.tools.feature_views import FeatureViewTools
 from src.hopsworks_mcp.tools.model_registry import ModelRegistryTools
 from src.hopsworks_mcp.tools.model_serving import ModelServingTools
 from src.hopsworks_mcp.tools.projects import ProjectTools
@@ -22,6 +23,7 @@ from src.hopsworks_mcp.resources.projects import ProjectResources
 auth = AuthTools(mcp)
 feature_store = FeatureStoreTools(mcp)
 feature_groups = FeatureGroupTools(mcp)
+feature_views = FeatureViewTools(mcp)
 model_registry = ModelRegistryTools(mcp)
 model_serving = ModelServingTools(mcp)
 projects = ProjectTools(mcp)
