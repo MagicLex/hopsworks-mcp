@@ -1,6 +1,6 @@
 # Hopsworks MCP Server
 
-MCP server for Hopsworks integration, providing a straightforward interface for LLMs to interact with Hopsworks features.
+MCP server for Hopsworks integration, providing a straightforward interface for LLMs to interact with Hopsworks.
 
 ## Capabilities
 
