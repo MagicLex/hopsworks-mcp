@@ -75,7 +75,7 @@ fastmcp install main.py --name "Hopsworks Tools"
 
 ### Installation
 - The Hopsworks Python client is installed with the Python profile (`hopsworks[python]`) to ensure all necessary dependencies are available for pure Python environments.
-- For Spark environments, refer to the [Spark integration guide](https://docs.hopsworks.ai/latest/integrations/spark/) for proper configuration.
+- For Spark environments, additional configuration may be required.
 
 ### API Key
 - When generating an API key, include the following scopes: `featurestore`, `project`, `job`, and `kafka` for full functionality.
