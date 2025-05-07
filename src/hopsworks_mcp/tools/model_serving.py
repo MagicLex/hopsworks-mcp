@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 from typing import List, Dict, Any, Optional
+import hopsworks
 
 
 class ModelServingTools:
@@ -24,9 +25,8 @@ class ModelServingTools:
         if ctx:
             await ctx.info("Getting model serving for current project")
         
-        # In real implementation:
-        # project = hopsworks.get_current_project()
-        # ms = project.get_model_serving()
+        project = hopsworks.get_current_project()
+        ms = project.get_model_serving()
         
         return {
             "connected": True
@@ -41,11 +41,21 @@ class ModelServingTools:
         if ctx:
             await ctx.info("Listing model deployments")
             
-        # In real implementation:
-        # ms = project.get_model_serving()
-        # deployments = ms.get_deployments()
+        project = hopsworks.get_current_project()
+        ms = project.get_model_serving()
+        deployments = ms.get_deployments()
         
-        return []
+        result = []
+        for deployment in deployments:
+            result.append({
+                "name": deployment.name,
+                "model_name": deployment.model_name,
+                "model_version": deployment.model_version,
+                "status": deployment.status,
+                "created": str(deployment.created)
+            })
+        
+        return result
     
     async def deploy_model(
         self,
@@ -69,17 +79,18 @@ class ModelServingTools:
         if ctx:
             await ctx.info(f"Deploying model {model_name} (v{model_version}) as '{serving_name}'")
             
-        # In real implementation:
-        # ms = project.get_model_serving()
-        # mr = project.get_model_registry()
-        # model = mr.get_model(name=model_name, version=model_version)
-        # deployment = ms.create_deployment(name=serving_name, model=model)
+        project = hopsworks.get_current_project()
+        ms = project.get_model_serving()
+        mr = project.get_model_registry()
+        model = mr.get_model(name=model_name, version=model_version)
+        deployment = ms.create_deployment(name=serving_name, model=model)
         
         return {
-            "name": serving_name,
+            "name": deployment.name,
             "model": {
-                "name": model_name,
-                "version": model_version
+                "name": model.name,
+                "version": model.version
             },
-            "status": "created"
+            "status": deployment.status,
+            "endpoint": deployment.endpoint
         }

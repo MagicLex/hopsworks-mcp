@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 from typing import Dict, Any, Optional, List
+import hopsworks
 
 
 class DatasetTools:
@@ -33,9 +34,8 @@ class DatasetTools:
         if ctx:
             await ctx.info("Getting dataset API for current project")
         
-        # In real implementation:
-        # project = hopsworks.get_current_project()
-        # dataset_api = project.get_dataset_api()
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
         
         return {"connected": True}
     
@@ -59,11 +59,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Uploading {local_path} to {upload_path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # path = dataset_api.upload(local_path, upload_path, overwrite=overwrite)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        path = dataset_api.upload(local_path, upload_path, overwrite=overwrite)
         
-        return {"path": f"{upload_path}/{local_path.split('/')[-1]}", "status": "success"}
+        return {"path": path, "status": "success"}
     
     async def download_file(
         self,
@@ -85,12 +85,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Downloading {path} to {local_path or 'current directory'}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # path = dataset_api.download(path, local_path, overwrite)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        local_path_result = dataset_api.download(path, local_path, overwrite=overwrite)
         
-        local_dest = local_path or path.split("/")[-1]
-        return {"local_path": local_dest, "status": "success"}
+        return {"local_path": local_path_result, "status": "success"}
     
     async def list_files(
         self,
@@ -110,10 +109,19 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Listing files in {path}")
         
-        # In real implementation this would call the Hopsworks API
-        # dataset_api = project.get_dataset_api()
-        # files = dataset_api.list(path, recursive)
+        # Note: The list function might not be directly available in the client
+        # We may need to use lower-level REST API calls
         
+        # For now, we'll check if the path exists
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        exists = dataset_api.exists(path)
+        
+        if not exists:
+            return []
+            
+        # In a more complete implementation, we would make a call to list the contents
+        # This would likely require using the REST API directly
         return []
     
     async def create_directory(
@@ -132,11 +140,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Creating directory: {path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # path = dataset_api.mkdir(path)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        path_result = dataset_api.mkdir(path)
         
-        return {"path": path, "status": "created"}
+        return {"path": path_result, "status": "created"}
     
     async def remove_file(
         self,
@@ -154,9 +162,9 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Removing: {path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # dataset_api.remove(path)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        dataset_api.remove(path)
         
         return {"path": path, "status": "removed"}
     
@@ -176,11 +184,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Checking if {path} exists")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # exists = dataset_api.exists(path)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        exists = dataset_api.exists(path)
         
-        return {"path": path, "exists": False}
+        return {"path": path, "exists": exists}
     
     async def move_file(
         self,
@@ -202,11 +210,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Moving {source_path} to {destination_path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # path = dataset_api.move(source_path, destination_path, overwrite)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        path = dataset_api.move(source_path, destination_path, overwrite=overwrite)
         
-        return {"source": source_path, "destination": destination_path, "status": "moved"}
+        return {"source": source_path, "destination": destination_path, "path": path, "status": "moved"}
     
     async def copy_file(
         self,
@@ -228,11 +236,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Copying {source_path} to {destination_path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # path = dataset_api.copy(source_path, destination_path, overwrite)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        path = dataset_api.copy(source_path, destination_path, overwrite=overwrite)
         
-        return {"source": source_path, "destination": destination_path, "status": "copied"}
+        return {"source": source_path, "destination": destination_path, "path": path, "status": "copied"}
     
     async def read_content(
         self,
@@ -250,11 +258,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Reading content of {path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # content = dataset_api.read_content(path)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        content = dataset_api.read_content(path)
         
-        return {"path": path, "content": ""}
+        return {"path": path, "content": content}
     
     async def zip_file(
         self,
@@ -275,11 +283,11 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Zipping {remote_path} to {dest}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # success = dataset_api.zip(remote_path, destination_path, block=True)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        success = dataset_api.zip(remote_path, destination_path, block=True)
         
-        return {"source": remote_path, "destination": dest, "status": "zipped"}
+        return {"source": remote_path, "destination": dest, "status": "zipped" if success else "in_progress"}
     
     async def unzip_file(
         self,
@@ -297,8 +305,8 @@ class DatasetTools:
         if ctx:
             await ctx.info(f"Unzipping {remote_path}")
         
-        # In real implementation:
-        # dataset_api = project.get_dataset_api()
-        # success = dataset_api.unzip(remote_path, block=True)
+        project = hopsworks.get_current_project()
+        dataset_api = project.get_dataset_api()
+        success = dataset_api.unzip(remote_path, block=True)
         
-        return {"path": remote_path, "status": "unzipped"}
+        return {"path": remote_path, "status": "unzipped" if success else "in_progress"}

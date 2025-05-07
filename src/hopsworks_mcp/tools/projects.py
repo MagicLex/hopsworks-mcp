@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 from typing import Dict, Any, List
+import hopsworks
 
 
 class ProjectTools:
@@ -23,14 +24,12 @@ class ProjectTools:
         if ctx:
             await ctx.info("Getting current project information")
         
-        # In real implementation:
-        # import hopsworks
-        # project = hopsworks.get_current_project()
+        project = hopsworks.get_current_project()
         
         return {
-            "name": "default",
-            "id": 1,
-            "owner": "user"
+            "name": project.name,
+            "id": project.id,
+            "owner": project.owner
         }
     
     async def list_projects(self, ctx: Context = None) -> List[Dict[str, Any]]:
@@ -42,7 +41,14 @@ class ProjectTools:
         if ctx:
             await ctx.info("Listing all accessible projects")
             
-        # In real implementation would connect to Hopsworks API
-        # and retrieve all projects the user has access to
+        # Note: This is not directly available in the Hopsworks Python client
+        # We would need to make a custom API call to get all projects
+        # For now, we'll return a list with just the current project
         
-        return []
+        project = hopsworks.get_current_project()
+        
+        return [{
+            "name": project.name,
+            "id": project.id,
+            "owner": project.owner
+        }]

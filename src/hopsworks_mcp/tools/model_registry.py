@@ -2,6 +2,7 @@
 
 from fastmcp import Context
 from typing import List, Dict, Any, Optional
+import hopsworks
 
 
 class ModelRegistryTools:
@@ -24,9 +25,8 @@ class ModelRegistryTools:
         if ctx:
             await ctx.info("Getting model registry for current project")
         
-        # In real implementation:
-        # project = hopsworks.get_current_project()
-        # mr = project.get_model_registry()
+        project = hopsworks.get_current_project()
+        mr = project.get_model_registry()
         
         return {
             "connected": True
@@ -41,11 +41,20 @@ class ModelRegistryTools:
         if ctx:
             await ctx.info("Listing models in the registry")
             
-        # In real implementation:
-        # mr = project.get_model_registry()
-        # models = mr.get_models()
+        project = hopsworks.get_current_project()
+        mr = project.get_model_registry()
+        models = mr.get_models()
         
-        return []
+        result = []
+        for model in models:
+            result.append({
+                "name": model.name,
+                "version": model.version,
+                "description": model.description,
+                "created": str(model.created)
+            })
+        
+        return result
     
     async def get_model(
         self,
@@ -66,13 +75,19 @@ class ModelRegistryTools:
         if ctx:
             await ctx.info(f"Getting model {name} {version_info}")
             
-        # In real implementation:
-        # mr = project.get_model_registry()
-        # model = mr.get_model(name=name, version=version)
+        project = hopsworks.get_current_project()
+        mr = project.get_model_registry()
+        model = mr.get_model(name=name, version=version)
         
-        model_version = version or 1
+        # Extract metrics in a serializable format
+        metrics = {}
+        if hasattr(model, "metrics") and model.metrics:
+            for key, value in model.metrics.items():
+                metrics[key] = value
+        
         return {
-            "name": name,
-            "version": model_version,
-            "description": ""
+            "name": model.name,
+            "version": model.version,
+            "description": model.description,
+            "metrics": metrics
         }
