@@ -37,5 +37,8 @@ ENV/
 htmlcov/
 .pytest_cache/
 
+# Project specific
+CLAUDE.md
+
 # Misc
 .DS_Store
