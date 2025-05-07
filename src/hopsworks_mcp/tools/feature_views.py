@@ -25,6 +25,8 @@ class FeatureViewTools:
             description: str = "",
             labels: Optional[List[str]] = None,
             transformation_functions: Optional[List[Any]] = None,
+            inference_helper_columns: Optional[List[str]] = None,
+            training_helper_columns: Optional[List[str]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -42,6 +44,10 @@ class FeatureViewTools:
                 transformation_functions: List of transformation functions to attach to the feature view
                     These model-dependent transformation functions are applied when using the feature view
                     for training and inference.
+                inference_helper_columns: List of feature names that are not used for training but are needed
+                    during inference for computing on-demand features.
+                training_helper_columns: List of feature names that provide additional information during
+                    training but are not part of the model features.
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -73,6 +79,13 @@ class FeatureViewTools:
                 # Add transformation functions if provided
                 if transformation_functions is not None:
                     fv_params["transformation_functions"] = transformation_functions
+                
+                # Add helper columns if provided
+                if inference_helper_columns is not None:
+                    fv_params["inference_helper_columns"] = inference_helper_columns
+                
+                if training_helper_columns is not None:
+                    fv_params["training_helper_columns"] = training_helper_columns
                 
                 # Create the feature view
                 feature_view = fs.create_feature_view(**fv_params)
@@ -273,6 +286,13 @@ class FeatureViewTools:
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             limit: int = 100,
+            transform: bool = True,
+            primary_key: bool = False,
+            event_time: bool = False,
+            inference_helpers: bool = False,
+            training_helpers: bool = False,
+            read_options: Optional[Dict[str, Any]] = None,
+            transformation_context: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -284,6 +304,13 @@ class FeatureViewTools:
                 start_time: Start event time for the batch query (format: YYYY-MM-DD HH:MM:SS)
                 end_time: End event time for the batch query (format: YYYY-MM-DD HH:MM:SS)
                 limit: Maximum number of rows to return
+                transform: Whether to apply model-dependent transformations (default: True)
+                primary_key: Whether to include primary key columns in the result (default: False)
+                event_time: Whether to include event time column in the result (default: False)
+                inference_helpers: Whether to include inference helper columns in the result (default: False)
+                training_helpers: Whether to include training helper columns in the result (default: False)
+                read_options: Additional options for reading data (e.g., {"use_hive": True})
+                transformation_context: Context variables to pass to transformation functions
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -297,8 +324,34 @@ class FeatureViewTools:
                 fs = project.get_feature_store(name=project_name)
                 fv = fs.get_feature_view(name=name, version=version)
                 
+                # Build parameters for get_batch_data
+                params = {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "transform": transform
+                }
+                
+                # Add optional parameters if provided
+                if primary_key:
+                    params["primary_key"] = primary_key
+                
+                if event_time:
+                    params["event_time"] = event_time
+                
+                if inference_helpers:
+                    params["inference_helpers"] = inference_helpers
+                
+                if training_helpers:
+                    params["training_helpers"] = training_helpers
+                
+                if read_options is not None:
+                    params["read_options"] = read_options
+                
+                if transformation_context is not None:
+                    params["transformation_context"] = transformation_context
+                
                 # Get batch data
-                df = fv.get_batch_data(start_time=start_time, end_time=end_time)
+                df = fv.get_batch_data(**params)
                 
                 # Convert result to JSON format
                 rows = json.loads(df.head(limit).to_json(orient="records"))
@@ -325,6 +378,12 @@ class FeatureViewTools:
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             data_format: str = "parquet",
+            primary_key: bool = False,
+            event_time: bool = False,
+            inference_helpers: bool = False,
+            training_helpers: bool = False,
+            write_options: Optional[Dict[str, Any]] = None,
+            transformation_context: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -340,6 +399,12 @@ class FeatureViewTools:
                 start_time: Start event time for data selection (format: YYYY-MM-DD HH:MM:SS)
                 end_time: End event time for data selection (format: YYYY-MM-DD HH:MM:SS)
                 data_format: Format to save the data (parquet, csv, tfrecord, etc.)
+                primary_key: Whether to include primary key columns in the result (default: False)
+                event_time: Whether to include event time column in the result (default: False)
+                inference_helpers: Whether to include inference helper columns in the result (default: False)
+                training_helpers: Whether to include training helper columns in the result (default: False)
+                write_options: Additional options for writing data (e.g., {"wait_for_job": False})
+                transformation_context: Context variables to pass to transformation functions
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -353,13 +418,35 @@ class FeatureViewTools:
                 fs = project.get_feature_store(name=project_name)
                 fv = fs.get_feature_view(name=name, version=version)
                 
+                # Build parameters for create_training_data
+                params = {
+                    "description": description,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "data_format": data_format
+                }
+                
+                # Add optional parameters if provided
+                if primary_key:
+                    params["primary_key"] = primary_key
+                
+                if event_time:
+                    params["with_event_time"] = event_time
+                
+                if inference_helpers:
+                    params["inference_helper_columns"] = inference_helpers
+                
+                if training_helpers:
+                    params["training_helper_columns"] = training_helpers
+                
+                if write_options is not None:
+                    params["write_options"] = write_options
+                
+                if transformation_context is not None:
+                    params["transformation_context"] = transformation_context
+                
                 # Create training data
-                training_dataset_version, job = fv.create_training_data(
-                    description=description,
-                    start_time=start_time,
-                    end_time=end_time,
-                    data_format=data_format
-                )
+                training_dataset_version, job = fv.create_training_data(**params)
                 
                 return {
                     "feature_view_name": name,
@@ -380,6 +467,12 @@ class FeatureViewTools:
             name: str,
             version: int = 1,
             training_dataset_version: int = 1,
+            primary_key: bool = False,
+            event_time: bool = False,
+            inference_helpers: bool = False,
+            training_helpers: bool = False,
+            read_options: Optional[Dict[str, Any]] = None,
+            transformation_context: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -391,6 +484,12 @@ class FeatureViewTools:
                 name: Name of the feature view
                 version: Version of the feature view (defaults to 1)
                 training_dataset_version: Version of the training dataset to retrieve
+                primary_key: Whether to include primary key columns in the result (default: False)
+                event_time: Whether to include event time column in the result (default: False)
+                inference_helpers: Whether to include inference helper columns in the result (default: False)
+                training_helpers: Whether to include training helper columns in the result (default: False)
+                read_options: Additional options for reading data (e.g., {"use_hive": True})
+                transformation_context: Context variables to pass to transformation functions
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -404,8 +503,32 @@ class FeatureViewTools:
                 fs = project.get_feature_store(name=project_name)
                 fv = fs.get_feature_view(name=name, version=version)
                 
+                # Build parameters for get_training_data
+                params = {
+                    "training_dataset_version": training_dataset_version
+                }
+                
+                # Add optional parameters if provided
+                if primary_key:
+                    params["primary_key"] = primary_key
+                
+                if event_time:
+                    params["event_time"] = event_time
+                
+                if inference_helpers:
+                    params["inference_helper_columns"] = inference_helpers
+                
+                if training_helpers:
+                    params["training_helper_columns"] = training_helpers
+                
+                if read_options is not None:
+                    params["read_options"] = read_options
+                
+                if transformation_context is not None:
+                    params["transformation_context"] = transformation_context
+                
                 # Get training data
-                features_df, labels_df = fv.get_training_data(training_dataset_version=training_dataset_version)
+                features_df, labels_df = fv.get_training_data(**params)
                 
                 # Result will include information about the training data but not the actual data
                 # as it could be very large
@@ -812,12 +935,74 @@ class FeatureViewTools:
                 }
                 
         @self.mcp.tool()
+        async def get_inference_helper(
+            name: str,
+            version: int = 1,
+            entry: Dict[str, Any] = None,
+            return_type: str = "dict",
+            project_name: Optional[str] = None,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """Get inference helper columns for a specified key from a feature view.
+            
+            This retrieves only the inference helper columns from a feature view for a given entry.
+            These helper columns can be used to compute on-demand features during inference.
+            
+            Args:
+                name: Name of the feature view
+                version: Version of the feature view (defaults to 1)
+                entry: Dictionary of primary key values to retrieve inference helpers for
+                return_type: Return type format - "dict" or "pandas" (default: "dict")
+                project_name: Name of the Hopsworks project's feature store (defaults to current project)
+                
+            Returns:
+                dict: Inference helper columns for the specified key
+            """
+            if ctx:
+                await ctx.info(f"Getting inference helper columns from feature view: {name} (v{version})")
+            
+            try:
+                project = hopsworks.get_current_project()
+                fs = project.get_feature_store(name=project_name)
+                fv = fs.get_feature_view(name=name, version=version)
+                
+                # Initialize serving
+                fv.init_serving()
+                
+                # Get inference helpers
+                result = fv.get_inference_helper(entry=entry, return_type=return_type)
+                
+                # Convert pandas to dict if needed
+                if return_type == "pandas" and hasattr(result, 'to_dict'):
+                    helper_data = result.to_dict('records')[0] if len(result) > 0 else {}
+                else:
+                    helper_data = result
+                
+                return {
+                    "feature_view_name": name,
+                    "feature_view_version": version,
+                    "helpers": helper_data,
+                    "status": "success"
+                }
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to get inference helper columns: {str(e)}"
+                }
+                
+        @self.mcp.tool()
         async def create_train_test_split(
             name: str,
             version: int = 1,
             test_size: float = 0.2,
             description: str = "",
             data_format: str = "parquet",
+            primary_key: bool = False,
+            event_time: bool = False,
+            inference_helpers: bool = False,
+            training_helpers: bool = False,
+            write_options: Optional[Dict[str, Any]] = None,
+            transformation_context: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -831,6 +1016,12 @@ class FeatureViewTools:
                 test_size: Size of the test set as a fraction (0.0 to 1.0)
                 description: Description of the training dataset
                 data_format: Format to save the data (parquet, csv, tfrecord, etc.)
+                primary_key: Whether to include primary key columns in the result (default: False)
+                event_time: Whether to include event time column in the result (default: False)
+                inference_helpers: Whether to include inference helper columns in the result (default: False)
+                training_helpers: Whether to include training helper columns in the result (default: False)
+                write_options: Additional options for writing data (e.g., {"wait_for_job": False})
+                transformation_context: Context variables to pass to transformation functions
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -844,12 +1035,34 @@ class FeatureViewTools:
                 fs = project.get_feature_store(name=project_name)
                 fv = fs.get_feature_view(name=name, version=version)
                 
+                # Build parameters for create_train_test_split
+                params = {
+                    "test_size": test_size,
+                    "description": description,
+                    "data_format": data_format
+                }
+                
+                # Add optional parameters if provided
+                if primary_key:
+                    params["primary_key"] = primary_key
+                
+                if event_time:
+                    params["with_event_time"] = event_time
+                
+                if inference_helpers:
+                    params["inference_helper_columns"] = inference_helpers
+                
+                if training_helpers:
+                    params["training_helper_columns"] = training_helpers
+                
+                if write_options is not None:
+                    params["write_options"] = write_options
+                
+                if transformation_context is not None:
+                    params["transformation_context"] = transformation_context
+                
                 # Create train-test split
-                training_dataset_version, job = fv.create_train_test_split(
-                    test_size=test_size,
-                    description=description,
-                    data_format=data_format
-                )
+                training_dataset_version, job = fv.create_train_test_split(**params)
                 
                 return {
                     "feature_view_name": name,
@@ -871,6 +1084,12 @@ class FeatureViewTools:
             name: str,
             version: int = 1,
             training_dataset_version: int = 1,
+            primary_key: bool = False,
+            event_time: bool = False,
+            inference_helpers: bool = False,
+            training_helpers: bool = False,
+            read_options: Optional[Dict[str, Any]] = None,
+            transformation_context: Optional[Dict[str, Any]] = None,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -882,6 +1101,12 @@ class FeatureViewTools:
                 name: Name of the feature view
                 version: Version of the feature view (defaults to 1)
                 training_dataset_version: Version of the training dataset to retrieve
+                primary_key: Whether to include primary key columns in the result (default: False)
+                event_time: Whether to include event time column in the result (default: False)
+                inference_helpers: Whether to include inference helper columns in the result (default: False)
+                training_helpers: Whether to include training helper columns in the result (default: False)
+                read_options: Additional options for reading data (e.g., {"use_hive": True})
+                transformation_context: Context variables to pass to transformation functions
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:
@@ -895,8 +1120,32 @@ class FeatureViewTools:
                 fs = project.get_feature_store(name=project_name)
                 fv = fs.get_feature_view(name=name, version=version)
                 
+                # Build parameters for get_train_test_split
+                params = {
+                    "training_dataset_version": training_dataset_version
+                }
+                
+                # Add optional parameters if provided
+                if primary_key:
+                    params["primary_key"] = primary_key
+                
+                if event_time:
+                    params["event_time"] = event_time
+                
+                if inference_helpers:
+                    params["inference_helper_columns"] = inference_helpers
+                
+                if training_helpers:
+                    params["training_helper_columns"] = training_helpers
+                
+                if read_options is not None:
+                    params["read_options"] = read_options
+                
+                if transformation_context is not None:
+                    params["transformation_context"] = transformation_context
+                
                 # Get train-test split
-                X_train, X_test, y_train, y_test = fv.get_train_test_split(training_dataset_version=training_dataset_version)
+                X_train, X_test, y_train, y_test = fv.get_train_test_split(**params)
                 
                 # Result will include information about the train-test split but not the actual data
                 return {
