@@ -4,30 +4,39 @@ MCP server for Hopsworks integration, providing a straightforward interface for 
 
 ## Capabilities
 
+### Platform & Authentication
 - **Authentication** - Connect to Hopsworks instances
+- **Projects** - Create and manage Hopsworks projects
+- **Datasets** - Handle file operations on Hopsworks
+- **Python Environments** - Manage Python environments and dependencies
+- **Secrets** - Securely store and retrieve sensitive information
+
+### Feature Store
 - **Feature Store** - Interact with feature stores and run SQL queries
 - **Feature Groups** - Manage feature groups and their data
 - **External Feature Groups** - Connect to external data sources as feature groups
 - **Features** - Work with individual features and their metadata
-- **Feature Views** - Create and use feature views for model training and serving
+- **Feature Views** - Create and use feature views for model training and serving 
 - **Expectations** - Create and manage data validation rules
 - **Embeddings** - Manage vector embeddings and similarity search
 - **Queries** - Join, filter, and analyze feature data
 - **Spine Groups** - Create and use spine groups for training data generation
 - **Training Datasets** - Create and manage datasets for model training
 - **Transformation Functions** - Create and manage feature transformation functions
+
+### Model Lifecycle
 - **Model Registry** - Create, save, retrieve and manage ML models (TensorFlow, PyTorch, scikit-learn, Python, LLM)
 - **Model Serving** - Deploy, manage and monitor ML models in production with advanced features like transformers, inference logging and batching
-- **Projects** - Create and manage Hopsworks projects
-- **Datasets** - Handle file operations on Hopsworks
-- **Python Environments** - Manage Python environments and dependencies
+
+### Jobs & Processing
 - **Jobs** - Create and schedule jobs
 - **Executions** - Run and monitor job executions
 - **Flink Clusters** - Manage Flink clusters and jobs
+
+### Integrations
 - **Git Integration** - Work with Git repositories within Hopsworks
 - **Kafka** - Create and manage Kafka topics and schemas
 - **OpenSearch** - Work with OpenSearch indexes
-- **Secrets** - Securely store and retrieve sensitive information
 
 ## Installation
 
