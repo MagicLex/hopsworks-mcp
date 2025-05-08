@@ -21,8 +21,8 @@ class FlinkTools:
         self.mcp.tool()(self.upload_jar)
         self.mcp.tool()(self.get_jars)
         self.mcp.tool()(self.submit_job)
-        self.mcp.tool()(self.get_jobs)
-        self.mcp.tool()(self.get_job)
+        self.mcp.tool()(self.get_flink_jobs)  # Renamed from get_jobs
+        self.mcp.tool()(self.get_flink_job)   # Renamed from get_job
         self.mcp.tool()(self.job_state)
         self.mcp.tool()(self.stop_job)
         
@@ -296,7 +296,7 @@ class FlinkTools:
             "status": "submitted"
         }
     
-    async def get_jobs(
+    async def get_flink_jobs(
         self,
         cluster_name: str,
         ctx: Context = None
@@ -323,7 +323,7 @@ class FlinkTools:
         
         return jobs
     
-    async def get_job(
+    async def get_flink_job(
         self,
         cluster_name: str,
         job_id: str,

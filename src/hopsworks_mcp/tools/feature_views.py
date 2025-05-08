@@ -1074,8 +1074,8 @@ class FeatureViewTools:
         @self.mcp.tool()
         async def init_batch_scoring(
             name: str,
-            version: int = 1,
             training_dataset_version: int,
+            version: int = 1,
             project_name: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
@@ -1086,8 +1086,8 @@ class FeatureViewTools:
             
             Args:
                 name: Name of the feature view
-                version: Version of the feature view (defaults to 1)
                 training_dataset_version: Version of the training dataset to use for transformation statistics
+                version: Version of the feature view (defaults to 1)
                 project_name: Name of the Hopsworks project's feature store (defaults to current project)
                 
             Returns:

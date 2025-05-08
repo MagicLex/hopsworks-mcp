@@ -406,54 +406,6 @@ class FeatureGroupTools:
                     "message": f"Failed to update feature group description: {str(e)}"
                 }
         
-        @self.mcp.tool()
-        async def update_feature_description(
-            name: str,
-            feature_name: str,
-            description: str,
-            version: int = 1,
-            project_name: Optional[str] = None,
-            ctx: Context = None
-        ) -> Dict[str, Any]:
-            """Update the description of a feature in a feature group.
-            
-            Args:
-                name: Name of the feature group containing the feature
-                feature_name: Name of the feature to update
-                description: New description for the feature
-                version: Version of the feature group (defaults to 1)
-                project_name: Name of the Hopsworks project's feature store (defaults to current project)
-                
-            Returns:
-                dict: Updated feature information
-            """
-            if ctx:
-                await ctx.info(f"Updating description for feature '{feature_name}' in feature group: {name} (v{version})")
-            
-            try:
-                project = hopsworks.get_current_project()
-                fs = project.get_feature_store(name=project_name)
-                fg = fs.get_feature_group(name=name, version=version)
-                
-                # Update feature description
-                fg.update_feature_description(feature_name=feature_name, description=description)
-                
-                # Get updated feature
-                feature = fg.get_feature(feature_name)
-                
-                return {
-                    "feature_group": name,
-                    "version": version,
-                    "feature_name": feature.name,
-                    "description": feature.description,
-                    "type": feature.type,
-                    "status": "updated"
-                }
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Failed to update feature description: {str(e)}"
-                }
         
         @self.mcp.tool()
         async def delete_feature_group(

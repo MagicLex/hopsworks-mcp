@@ -59,12 +59,86 @@ fastmcp dev main.py
 
 ## Usage with Claude or other LLMs
 
-Once the server is running, you can use it with any MCP-compatible LLM client:
+### Running the Server
+
+You can run the Hopsworks MCP server in several ways:
 
 ```bash
+# Run the server directly
+python main.py
+
+# Run using FastMCP
+fastmcp run main.py
+
+# Use the interactive development environment
+fastmcp dev main.py
+
 # Install in Claude Desktop for persistent access
 fastmcp install main.py --name "Hopsworks Tools"
 ```
+
+### Configuring with Claude
+
+To use the Hopsworks MCP server with Claude, you need to add it to Claude's configuration. The configuration file is typically located at:
+
+- macOS: `~/Library/Application Support/Claude Desktop/config.json`
+- Windows: `%APPDATA%\Claude Desktop\config.json`
+- Linux: `~/.config/Claude Desktop/config.json`
+
+Add the following configuration to your Claude settings:
+
+```json
+{
+  "mcpServers": {
+    "hopsworks": {
+      "command": "/path/to/your/python",
+      "args": [
+        "/path/to/mcp-hopsworks/main.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/path/to/mcp-hopsworks",
+        "HOPSWORKS_API_KEY": "your_api_key_here",
+        "HOPSWORKS_HOST": "your_hopsworks_host_url"
+      }
+    }
+  }
+}
+```
+
+Replace the placeholders with your specific paths and credentials:
+- `/path/to/your/python`: The full path to your Python executable (e.g., `/usr/bin/python3` or `/Users/username/miniconda3/bin/python`)
+- `/path/to/mcp-hopsworks`: The full path to your mcp-hopsworks directory
+- `your_api_key_here`: Your Hopsworks API key
+- `your_hopsworks_host_url`: Your Hopsworks instance URL (e.g., "https://your-instance.hopsworks.ai")
+
+#### Troubleshooting Connection Issues
+
+If Claude has trouble connecting to the Hopsworks MCP server:
+
+1. **Python Path**: Ensure you're using the absolute path to the Python executable that has the required packages installed:
+   ```bash
+   # Find your Python path
+   which python3
+   # Or
+   python3 -c "import sys; print(sys.executable)"
+   ```
+
+2. **Environment Variables**: Make sure all required environment variables are set:
+   - `HOPSWORKS_API_KEY`: Required for authentication with Hopsworks
+   - `HOPSWORKS_HOST`: The URL of your Hopsworks instance
+   - `PYTHONPATH`: Should include the path to the mcp-hopsworks directory
+
+3. **Required Packages**: Verify that all required packages are installed:
+   ```bash
+   pip install -e .
+   ```
+
+4. **Python Version**: Ensure you're using Python 3.10 or higher:
+   ```bash
+   python --version
+   ```
+
+After updating your configuration, restart Claude completely for the changes to take effect.
 
 ## Requirements
 

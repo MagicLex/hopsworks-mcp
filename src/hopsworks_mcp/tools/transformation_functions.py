@@ -173,9 +173,9 @@ class TransformationFunctionsTools:
                     "execution_mode": execution_mode,
                     "dropped_features": drop_features,
                     "transformation_pattern": (
-                        "one-to-many" if len(param_names) == 1 and len(return_types_list) > 1 else
-                        "many-to-one" if len(param_names) > 1 and len(return_types_list) == 1 else
-                        "many-to-many" if len(param_names) > 1 and len(return_types_list) > 1 else
+                        "one-to-many" if len(signature.parameters.keys()) == 1 and len(return_types_list) > 1 else
+                        "many-to-one" if len(signature.parameters.keys()) > 1 and len(return_types_list) == 1 else
+                        "many-to-many" if len(signature.parameters.keys()) > 1 and len(return_types_list) > 1 else
                         "one-to-one"
                     ),
                     "status": "created"
@@ -420,6 +420,7 @@ class TransformationFunctionsTools:
                 
                 # Create Series from input data
                 input_series = {}
+                context_variables = None  # Define context_variables with default value
                 for param in param_names:
                     if param == "context" and context_variables is not None:
                         # If parameter is named 'context', pass context variables
@@ -619,9 +620,9 @@ class TransformationFunctionsTools:
                     "dropped_features": drop_features,
                     "features_with_statistics": feature_names_with_statistics,
                     "transformation_pattern": (
-                        "one-to-many" if len(param_names) == 1 and len(return_types_list) > 1 else
-                        "many-to-one" if len(param_names) > 1 and len(return_types_list) == 1 else
-                        "many-to-many" if len(param_names) > 1 and len(return_types_list) > 1 else
+                        "one-to-many" if len(signature.parameters.keys()) == 1 and len(return_types_list) > 1 else
+                        "many-to-one" if len(signature.parameters.keys()) > 1 and len(return_types_list) == 1 else
+                        "many-to-many" if len(signature.parameters.keys()) > 1 and len(return_types_list) > 1 else
                         "one-to-one"
                     ),
                     "status": "created"
@@ -682,6 +683,7 @@ class TransformationFunctionsTools:
                 
                 # Create Series from input data
                 input_series = {}
+                context_variables = None  # Define context_variables with default value
                 for param in param_names:
                     if param == "context" and context_variables is not None:
                         # If parameter is named 'context', pass context variables
